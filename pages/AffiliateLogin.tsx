@@ -1,4 +1,11 @@
 import React, { useState } from 'react';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  updateProfile 
+} from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase'; // Ajustez le chemin selon votre structure
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -23,17 +30,48 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isSignUp) {
+  const handleSignUp = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
       if (password !== confirmPassword) {
-        alert('Les mots de passe ne correspondent pas');
+        setError('Les mots de passe ne correspondent pas');
         return;
       }
-      
-      if (firstName && lastName && email && phone && password && onSignUp) {
+
+      if (password.length < 6) {
+        setError('Le mot de passe doit contenir au moins 6 caractères');
+        return;
+      }
+
+      // Créer le compte utilisateur
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Mettre à jour le profil avec le nom
+      await updateProfile(user, {
+        displayName: `${firstName} ${lastName}`
+      });
+
+      // Sauvegarder les données supplémentaires dans Firestore
+      await setDoc(doc(db, 'affiliates', user.uid), {
+        firstName,
+        lastName,
+        email,
+        phone,
+        role: 'affiliate',
+        createdAt: new Date().toISOString(),
+        isActive: true,
+        earnings: 0,
+        referrals: 0
+      });
+
+      // Callback original si fourni
+      if (onSignUp) {
         onSignUp({
           firstName,
           lastName,
@@ -42,10 +80,77 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
           password
         });
       }
-    } else {
-      if (email && password) {
-        onLogin(email);
+
+      // Callback de connexion
+      if (onLogin) {
+        onLogin(user.email!);
       }
+
+    } catch (error: any) {
+      console.error('Erreur lors de l\'inscription:', error);
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          setError('Cette adresse email est déjà utilisée');
+          break;
+        case 'auth/invalid-email':
+          setError('Adresse email invalide');
+          break;
+        case 'auth/weak-password':
+          setError('Le mot de passe est trop faible');
+          break;
+        default:
+          setError('Erreur lors de l\'inscription. Veuillez réessayer.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Callback de connexion
+      if (onLogin) {
+        onLogin(user.email!);
+      }
+
+    } catch (error: any) {
+      console.error('Erreur lors de la connexion:', error);
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          setError('Aucun compte trouvé avec cette adresse email');
+          break;
+        case 'auth/wrong-password':
+          setError('Mot de passe incorrect');
+          break;
+        case 'auth/invalid-email':
+          setError('Adresse email invalide');
+          break;
+        case 'auth/too-many-requests':
+          setError('Trop de tentatives. Veuillez réessayer plus tard.');
+          break;
+        default:
+          setError('Erreur lors de la connexion. Veuillez réessayer.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isSignUp) {
+      handleSignUp();
+    } else {
+      handleSignIn();
     }
   };
 
@@ -56,6 +161,7 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
     setFirstName('');
     setLastName('');
     setPhone('');
+    setError('');
   };
 
   const toggleMode = () => {
@@ -86,6 +192,12 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
             </p>
           </div>
 
+          {error && (
+            <div className="mb-6 p-4 bg-red-900/50 border border-red-500 rounded-lg">
+              <p className="text-red-400 text-sm text-center">{error}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {isSignUp && (
               <>
@@ -105,6 +217,7 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
                         className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00FF7F] focus:border-transparent"
                         placeholder="Prénom"
                         required
+                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -124,6 +237,7 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
                         className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00FF7F] focus:border-transparent"
                         placeholder="Nom"
                         required
+                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -144,6 +258,7 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
                       className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00FF7F] focus:border-transparent"
                       placeholder="+33 6 12 34 56 78"
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -165,6 +280,7 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
                   className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00FF7F] focus:border-transparent"
                   placeholder="votre@email.com"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -184,8 +300,15 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
                   className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00FF7F] focus:border-transparent"
                   placeholder="••••••••"
                   required
+                  disabled={loading}
+                  minLength={6}
                 />
               </div>
+              {isSignUp && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Minimum 6 caractères
+                </p>
+              )}
             </div>
 
             {isSignUp && (
@@ -204,13 +327,24 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
                     className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00FF7F] focus:border-transparent"
                     placeholder="••••••••"
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
             )}
 
-            <Button type="submit" className="w-full justify-center" size="lg">
-              {isSignUp ? (
+            <Button 
+              type="submit" 
+              className="w-full justify-center" 
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
+                  {isSignUp ? 'Création en cours...' : 'Connexion en cours...'}
+                </div>
+              ) : isSignUp ? (
                 <>
                   <UserPlus size={20} className="mr-2" />
                   Créer mon compte
