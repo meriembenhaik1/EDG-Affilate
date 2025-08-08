@@ -1,3 +1,7 @@
+// ==============================================
+// 2. AffiliateLogin.tsx (VERSION MISE À JOUR)
+// ==============================================
+
 import React, { useState } from 'react';
 import { 
   createUserWithEmailAndPassword, 
@@ -12,17 +16,10 @@ import { Button } from '../components/Button';
 import { User, Lock, LogIn, UserPlus, Mail, Phone } from 'lucide-react';
 
 interface AffiliateLoginProps {
-  onLogin: (email: string) => void;
-  onSignUp?: (userData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    password: string;
-  }) => void;
+  onLogin?: (email: string) => void;
 }
 
-export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignUp }) => {
+export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,21 +67,8 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
         referrals: 0
       });
 
-      // Callback original si fourni
-      if (onSignUp) {
-        onSignUp({
-          firstName,
-          lastName,
-          email,
-          phone,
-          password
-        });
-      }
-
-      // Callback de connexion
-      if (onLogin) {
-        onLogin(user.email!);
-      }
+      // L'observer onAuthStateChanged dans AffiliateApp gérera automatiquement la redirection
+      console.log('Inscription réussie, redirection automatique...');
 
     } catch (error: any) {
       console.error('Erreur lors de l\'inscription:', error);
@@ -115,10 +99,8 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Callback de connexion
-      if (onLogin) {
-        onLogin(user.email!);
-      }
+      // L'observer onAuthStateChanged dans AffiliateApp gérera automatiquement la redirection
+      console.log('Connexion réussie, redirection automatique...');
 
     } catch (error: any) {
       console.error('Erreur lors de la connexion:', error);
@@ -135,6 +117,9 @@ export const AffiliateLogin: React.FC<AffiliateLoginProps> = ({ onLogin, onSignU
           break;
         case 'auth/too-many-requests':
           setError('Trop de tentatives. Veuillez réessayer plus tard.');
+          break;
+        case 'auth/invalid-credential':
+          setError('Identifiants invalides');
           break;
         default:
           setError('Erreur lors de la connexion. Veuillez réessayer.');

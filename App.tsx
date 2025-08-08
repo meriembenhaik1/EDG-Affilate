@@ -1,26 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { AffiliateLogin } from './pages/AffiliateLogin';
-import { AffiliateDashboard } from './pages/AffiliateDashboard';
-import { Button } from './components/Button';
 import { Layout } from './components/Layout';
+import { Button } from './components/Button';
 import { Shield, Users } from 'lucide-react';
+import { AffiliateApp } from './pages/AffiliateApp';
+import { useState } from 'react';
 
-type ViewType = 'home' | 'admin' | 'affiliate-login' | 'affiliate-dashboard';
+type ViewType = 'home' | 'admin' | 'affiliate';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewType>('home');
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
-
-  const handleAffiliateLogin = (email: string) => {
-    setLoggedInUser(email);
-    setCurrentView('affiliate-dashboard');
-  };
-
-  const handleAffiliateLogout = () => {
-    setLoggedInUser(null);
-    setCurrentView('home');
-  };
 
   const handleAdminLogout = () => {
     setCurrentView('home');
@@ -30,20 +19,11 @@ function App() {
     return <AdminDashboard onLogout={handleAdminLogout} />;
   }
 
-  if (currentView === 'affiliate-login') {
-    return <AffiliateLogin onLogin={handleAffiliateLogin} />;
+  if (currentView === 'affiliate') {
+    return <AffiliateApp />;
   }
 
-  if (currentView === 'affiliate-dashboard' && loggedInUser) {
-    return (
-      <AffiliateDashboard 
-        userEmail={loggedInUser} 
-        onLogout={handleAffiliateLogout} 
-      />
-    );
-  }
-
-  // Home page
+  // page home
   return (
     <Layout title="Système d'Affiliation">
       <div className="text-center py-16">
@@ -82,7 +62,7 @@ function App() {
                 Connectez-vous à votre espace affilié pour suivre vos commissions et performances
               </p>
               <Button 
-                onClick={() => setCurrentView('affiliate-login')} 
+                onClick={() => setCurrentView('affiliate')} 
                 className="w-full justify-center"
               >
                 <Users size={20} className="mr-2" />
